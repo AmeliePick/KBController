@@ -19,7 +19,9 @@ Since ZEON K98 PRO is based on some chinese-korean keyboards, I guess, this soft
 
 ## Build
 1. To build this code you will also need hidapi.
-2. In some cases like playing games, the software may not receive keyboard events. Then you should build this code as DLL and create your own .exe to run it. Just like MSDN says about hooks.
+2. The code has been changed. Now, it polls the input at about 62 Hz. ~~In some cases like playing games, the software may not receive keyboard events. Then you should build this code as DLL and create your own .exe to run it. Just like MSDN says about hooks.~~
+If you want to use hooks, check `99fcc97` commit.
+
 
 ---
 Tested on Windows 10.
