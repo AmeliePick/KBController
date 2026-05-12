@@ -73,23 +73,23 @@ void Backlight::SetRow(__int8 row, Color color)
 void Backlight::SetNumPad(Color color)
 {
     memset(keyboardData +   8 + 36,  color.r, 4);
-    memset(keyboardData + 134 + 36,  color.b, 4);
+    memset(keyboardData + 134 + 36,  color.g, 4);
     memset(keyboardData + 260 + 36,  color.b, 4);
 
     memset(keyboardData +   8 + 57, color.r, 4);
-    memset(keyboardData + 134 + 57, color.b, 4);
+    memset(keyboardData + 134 + 57, color.g, 4);
     memset(keyboardData + 260 + 57, color.b, 4);
 
     memset(keyboardData +   8 + 78, color.r, 3);
-    memset(keyboardData + 134 + 78, color.b, 3);
+    memset(keyboardData + 134 + 78, color.g, 3);
     memset(keyboardData + 260 + 78, color.b, 3);
 
     memset(keyboardData +   8 + 99, color.r, 4);
-    memset(keyboardData + 134 + 99, color.b, 4);
+    memset(keyboardData + 134 + 99, color.g, 4);
     memset(keyboardData + 260 + 99, color.b, 4);
 
     memset(keyboardData +   8 + 121, color.r, 2);
-    memset(keyboardData + 134 + 121, color.b, 2);
+    memset(keyboardData + 134 + 121, color.g, 2);
     memset(keyboardData + 260 + 121, color.b, 2);
 }
 
