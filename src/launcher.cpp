@@ -7,6 +7,7 @@
 
 #undef UNICODE
 #include <windows.h>
+#include <string>
 #include <hidsdi.h>
 #include "../hidapi/hidapi.h"
 #pragma comment(lib, "hidapi.lib")
@@ -27,6 +28,10 @@ uint8 keyboardData[520] = { 0x7, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x22, 0x22, 
 static HANDLE deviceHandle = NULL;
 static MMRESULT RECBlinkTimer = NULL;
 
+typedef void(*EventTrigger)(uint8*);
+static EventTrigger EventNumpadOn;
+static EventTrigger EventNumpadOff;
+static EventTrigger KeyboardInitState;
 
 
 
@@ -34,7 +39,7 @@ VOID CALLBACK BlinkREC(UINT uTimerID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1
 {
     toggles = (toggles & ~(1 << 2) | ((-(!(toggles & 4))) & (1 << 2)));
 
-    Backlight::SetKey(Backlight::Keys::RAlt, { (uint8)(34 * (toggles & 4)), 0, 0 });
+    Backlight::SetKey(Backlight::Keys::PgUp, { (uint8)(34 * (toggles & 4)), 0, 0 });
     HidD_SetFeature(deviceHandle, keyboardData, 520);
 }
 
@@ -42,13 +47,13 @@ VOID CALLBACK BlinkREC(UINT uTimerID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1
 #pragma region NumPad
 void NumLockOFF()
 {
-    Backlight::SetNumPad({ 0, 0, 0 });
+    EventNumpadOff(keyboardData);
 }
 
 
 void NumLockON()
 {
-    Backlight::SetNumPad({ 34, 0, 0 });
+    EventNumpadOn(keyboardData);
 }
 
 void(*numLockActions[2])() = { &NumLockOFF, &NumLockON };
@@ -58,7 +63,7 @@ void(*numLockActions[2])() = { &NumLockOFF, &NumLockON };
 #pragma region Blinker
 void BlinkerON()
 {
-    Backlight::SetKey(Backlight::Keys::RAlt, { 0, 0, 0 });
+    Backlight::SetKey(Backlight::Keys::PgUp, { 0, 0, 0 });
     RECBlinkTimer = timeSetEvent(500, 0, BlinkREC, NULL, TIME_CALLBACK_FUNCTION | TIME_PERIODIC | TIME_KILL_SYNCHRONOUS);
 }
 
@@ -66,7 +71,7 @@ void BlinkerON()
 void BlinkerOFF()
 {
     timeKillEvent(RECBlinkTimer);
-    Backlight::SetKey(Backlight::Keys::RAlt, { 34, 0, 0 });
+    Backlight::SetKey(Backlight::Keys::PgUp, { 1, 69, 0 });
 }
 
 void(*blinkerActions[2])() = { &BlinkerOFF, &BlinkerON };
@@ -94,10 +99,60 @@ VOID CALLBACK InputPoll(UINT uTimerID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw
     if (oldFlags != toggles) HidD_SetFeature(deviceHandle, keyboardData, 520);
 }
 
+#define OEM_SCANCODE_RALT 0x38
+static HHOOK kbHook = NULL;
+LRESULT KeyboardHook(int code, WPARAM wParam, LPARAM lParam)
+{
+    static bool skip = false;
+    if (skip) return 0;
+    skip = true;
+
+    if (wParam == WM_SYSKEYDOWN)
+    {
+        UINT64 key = ((KBDLLHOOKSTRUCT*)lParam)->scanCode;
+        //if (key != OEM_SCANCODE_RALT)
+        //    return 0;
+
+        INPUT input = { 0 };
+        input.type = INPUT_KEYBOARD;
+        input.ki.wScan = OEM_SCANCODE_RALT;// MapVirtualKeyW(, MAPVK_VSC_TO_VK_EX);
+
+        input.ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY;
+        //if (IsExtenedKey(vKeyCode)) input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+
+        SendInput(1, &input, sizeof(input));
+        Sleep(1);
+        input.ki.dwFlags |= KEYEVENTF_KEYUP;
+        SendInput(1, &input, sizeof(input));
+
+        skip = false;
+        return 0;
+    }
+
+    skip = false;
+    return CallNextHookEx(NULL, code, wParam, lParam);
+}
+
 
 int main()
 {
     ShowWindow(GetConsoleWindow(), SW_HIDE);
+
+
+    std::string CL = "set INCLUDE=msvc\\lib\\include; && set LIB=msvc\\lib; && \"msvc\\bin\\cl.exe\" /std:c++17 /EHsc /MDd /LD \"KBProfile.cpp\" /link /OUT:KBTriggers.dll KBController.lib";
+    system(CL.c_str());
+
+    HMODULE triggers = LoadLibrary("KBTriggers.dll");
+    if (triggers == NULL)
+    {
+        MessageBox(NULL, "Triggers are not detected. Exiting...", "Error", 0);
+        return 0;
+    }
+
+    EventNumpadOn     = (EventTrigger)GetProcAddress(triggers, "EventNumpadOn");
+    EventNumpadOff    = (EventTrigger)GetProcAddress(triggers, "EventNumpadOff");
+    KeyboardInitState = (EventTrigger)GetProcAddress(triggers, "KeyboardInitState");
+
 
     if (hid_init() != 0)
     {
@@ -133,14 +188,13 @@ int main()
     hid_exit();
 
 
-    toggles |= (GetKeyState(VK_NUMLOCK) & 0x0001);
+    KeyboardInitState(keyboardData);
 
+    toggles |= (GetKeyState(VK_NUMLOCK) & 0x0001);
     // Configure the backlight to the keyboard's state.
     numLockActions[toggles & 1]();
 
-    //memset(keyboardData + 8, 0, 19);
-    //memset(keyboardData + 134, 7, 19);
-    //memset(keyboardData + 260, 27, 19);
+
     HidD_SetFeature(deviceHandle, keyboardData, 520);
 
     // ~62.5 Hz.

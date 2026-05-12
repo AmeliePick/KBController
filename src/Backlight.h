@@ -25,10 +25,10 @@ namespace Backlight
 
     // -- Sets the color for the key --
     // Use black color to turn off the key.
-    void SetKey(Keys key, Color color);
+    __declspec(dllexport) void SetKey(Keys key, Color color);
 
     // -- Sets the whole row to the color --
-    void SetRow(__int8 row, Color color);
+    __declspec(dllexport) void SetRow(__int8 row, Color color);
 
-    void SetNumPad(Color color);
+    __declspec(dllexport) void SetNumPad(Color color);
 }
