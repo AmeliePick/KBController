@@ -6,8 +6,10 @@
 */
 
 #undef UNICODE
-#include <windows.h>
-#include <string>
+#define VID 0x05AC
+#define PID 0x024F
+
+#include <Windows.h>
 #include <hidsdi.h>
 #include "../hidapi/hidapi.h"
 #pragma comment(lib, "hidapi.lib")
@@ -16,10 +18,11 @@
 
 #include "Backlight.h"
 
-#define VID 0x05AC
-#define PID 0x024F
+#define USE
+#include "EventHandlers.h"
+#include "BacklightProfile.h"
 
-typedef unsigned __int8 uint8;
+
 
 static uint8 toggles = 4; // <-- 1 bit - NumLock trigger, 2 bit - blink button trigger, 3 bit - blink state, 4 bit - blink button trigger state(Up/Down).
 
@@ -28,10 +31,7 @@ uint8 keyboardData[520] = { 0x7, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x22, 0x22, 
 static HANDLE deviceHandle = NULL;
 static MMRESULT RECBlinkTimer = NULL;
 
-typedef void(*EventTrigger)(uint8*);
-static EventTrigger EventNumpadOn;
-static EventTrigger EventNumpadOff;
-static EventTrigger KeyboardInitState;
+
 
 
 
@@ -138,21 +138,7 @@ int main()
 {
     ShowWindow(GetConsoleWindow(), SW_HIDE);
 
-
-    std::string CL = "set INCLUDE=msvc\\lib\\include; && set LIB=msvc\\lib; && \"msvc\\bin\\cl.exe\" /std:c++17 /EHsc /MDd /LD \"KBProfile.cpp\" /link /OUT:KBTriggers.dll KBController.lib";
-    system(CL.c_str());
-
-    HMODULE triggers = LoadLibrary("KBTriggers.dll");
-    if (triggers == NULL)
-    {
-        MessageBox(NULL, "Triggers are not detected. Exiting...", "Error", 0);
-        return 0;
-    }
-
-    EventNumpadOn     = (EventTrigger)GetProcAddress(triggers, "EventNumpadOn");
-    EventNumpadOff    = (EventTrigger)GetProcAddress(triggers, "EventNumpadOff");
-    KeyboardInitState = (EventTrigger)GetProcAddress(triggers, "KeyboardInitState");
-
+    LoadProfile();
 
     if (hid_init() != 0)
     {
