@@ -33,9 +33,18 @@ bool GetNewHash(const std::string& filePath, BYTE* hash)
     return true;
 }
 
-
+#include <shlwapi.h>
+#pragma comment(lib, "shlwapi.lib")
 void LoadProfile()
 {
+    wchar_t exePath[MAX_PATH];
+
+    if (GetModuleFileNameW(NULL, exePath, MAX_PATH) > 0)
+    {
+        PathRemoveFileSpecW(exePath);
+        SetCurrentDirectoryW(exePath);
+    }
+
     std::string fileName = "hash.kbc";
 
 
@@ -63,6 +72,10 @@ void LoadProfile()
         WriteFile(file, newHash, sizeof(newHash), (DWORD*)oldHash, NULL);
         CloseHandle(file);
 
+        std::wstring file = exePath;
+        file += L"\\KBTriggers.dll";
+
+        DeleteFileW(file.c_str());
 
         std::string CL = "set INCLUDE=msvc\\lib\\include; && set LIB=msvc\\lib; && \"msvc\\bin\\cl.exe\" /std:c++17 /EHsc /MDd /LD \"KBProfile.cpp\" /link /OUT:KBTriggers.dll KBController.lib";
         system(CL.c_str());
